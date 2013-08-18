@@ -730,6 +730,9 @@ clojure.core/split-with
          [[x -> Any :filters {:then (is y 0), :else (is z 0)}] (Option (Seqable x)) -> '[(Seqable y) (Seqable z)]]
          [[x -> Any] (Option (Seqable x)) -> '[(Seqable x) (Seqable x)]]))
 
+clojure.core/split-at
+     (All [x y z] 
+          [AnyInteger (Option (Seqable x)) -> '[(Seqable x) (Seqable x)]])
 
 clojure.core/repeatedly 
      (All [x]

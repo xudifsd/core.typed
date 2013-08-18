@@ -54,12 +54,6 @@
   ([{S  :S X  :X T  :T bnds  :bnds :as c1}
     {S* :S X* :X T* :T bnds* :bnds :as c2}
     var]
-   (t/ann-form c1 c)
-   (t/ann-form c2 c)
-   (t/ann-form S r/TCType)
-   (t/ann-form T r/TCType)
-   (t/ann-form S* r/TCType)
-   (t/ann-form T* r/TCType)
    (when-not (or var (= X X*))
      (u/int-error (str "Non-matching vars in c-meet:" X X*)))
    (when-not (= bnds bnds*)
@@ -72,7 +66,8 @@
 
 (declare dmap-meet)
 
-(t/ann cset-meet [cset cset -> cset])
+;FIXME flow error when checking
+(t/ann ^:no-check cset-meet [cset cset -> cset])
 (defn cset-meet [{maps1 :maps :as x} {maps2 :maps :as y}]
   {:pre [(cr/cset? x)
          (cr/cset? y)]}
@@ -110,7 +105,7 @@
 
 ;add new constraint to existing cset
 (t/ann insert-constraint [cset Symbol r/TCType r/TCType Bounds
-                          -> cset])
+                                     -> cset])
 (defn insert-constraint [cs var S T bnds]
   {:pre [(cr/cset? cs)
          (symbol? var)
@@ -647,9 +642,9 @@
       (for> :- cset
         [t-arr :- Function, (.types T)]
         ;; for each t-arr, we need to get at least s-arr that works
-        (let [results (filter identity
+        (let [results (filter (t/inst identity (U false cset))
                               (doall
-                                (for> :- (U nil cset)
+                                (for> :- (U false cset)
                                   [s-arr :- Function, (.types S)]
                                   (handle-failure
                                     (cs-gen-Function V X Y s-arr t-arr)))))]
@@ -696,6 +691,8 @@
                 (r/make-ExactCountRange (count (:types S))))
           T))
 
+(t/ann cs-gen-datatypes-or-records
+       [NoMentions ConstrainVars ConstrainVars DataType DataType -> cset])
 (defn cs-gen-datatypes-or-records 
   [V X Y S T]
   {:pre [(every? r/DataType? [S T])]}
@@ -800,6 +797,7 @@
                                         (cs-gen V X Y ti si)))))))
     (fail! S T)))
 
+(t/ann demote-F [NoMentions ConstrainVars ConstrainVars F r/Type -> cset])
 (defn demote-F [V X Y {:keys [name] :as S} T]
   {:pre [(r/F? S)]}
   ;constrain T to be below S (but don't mention V)
@@ -812,6 +810,7 @@
     (-> (cr/empty-cset X Y)
       (insert-constraint name (r/Bottom) dt (X name)))))
 
+(t/ann promote-F [NoMentions ConstrainVars ConstrainVars r/Type F -> cset])
 (defn promote-F [V X Y S {:keys [name] :as T}]
   {:pre [(r/F? T)]}
   ;T is an F
@@ -826,7 +825,9 @@
     (-> (cr/empty-cset X Y)
       (insert-constraint name ps r/-any (X name)))))
 
+(t/ann cs-gen-left-F [NoMentions ConstrainVars ConstrainVars F r/Type -> cset])
 (defn cs-gen-left-F [V X Y ^F S T]
+  {:pre [(r/F? S)]}
   #_(prn "cs-gen* [F Type]" S T)
   (cond
     (contains? X (.name S))
@@ -838,7 +839,9 @@
 
     :else (fail! S T)))
 
+(t/ann cs-gen-right-F [NoMentions ConstrainVars ConstrainVars r/Type F -> cset])
 (defn cs-gen-right-F [V X Y S T]
+  {:pre [(r/F? T)]}
   ;(prn "cs-gen* [Type F]" S T X)
   (cond
     (contains? X (:name T))
@@ -850,9 +853,11 @@
 
     :else (fail! S T)))
 
+(t/ann singleton-dmap [Symbol cr/DCon -> dmap])
 (defn singleton-dmap [dbound dcon]
   (cr/->dmap {dbound dcon}))
 
+(t/ann mover [cset Symbol (U nil (t/Seqable Symbol)) -> cset])
 (defn mover [cset dbound vars f]
   {:pre [(cr/cset? cset)
          (symbol? dbound)
@@ -871,6 +876,8 @@
 
 ;; dbound : index variable
 ;; cset : the constraints being manipulated
+;FIXME needs no-check for unreachable flow filter error
+(t/ann ^:no-check move-rest-to-dmap [cset Symbol & :optional {:exact (U nil true)} -> cset])
 (defn move-rest-to-dmap [cset dbound & {:keys [exact]}]
   {:pre [(cr/cset? cset)
          (symbol? dbound)
@@ -890,6 +897,7 @@
 ;; cset : the constraints being manipulated
 ;; takes the constraints on vars and creates a dmap entry contstraining dbound to be |vars|
 ;; with the constraints that cset places on vars
+(t/ann move-vars-to-dmap [cset Symbol (U nil (t/Seqable Symbol)) -> cset])
 (defn move-vars-to-dmap [cset dbound vars]
   {:pre [(cr/cset? cset)
          (symbol? dbound)
@@ -908,6 +916,9 @@
 ;; in place, and the "simple" case will then call move-rest-to-dmap.  This means
 ;; we need to extract that result from the dmap and merge it with the fixed vars
 ;; we now handled.  So I've extended the mover to give access to the dmap, which we use here.
+;FIXME no-check because of unreachable flow 
+(t/ann ^:no-check move-vars+rest-to-dmap 
+       [cset Symbol (t/Set Symbol) & :optional {:exact (U nil true)} -> cset])
 (defn move-vars+rest-to-dmap [cset dbound vars & {:keys [exact]}]
   {:pre [(cr/cset? cset)
          (symbol? dbound)
@@ -940,10 +951,12 @@
 ;; The domain of this map is pairs (var . dotted-type).
 ;; The range is this map is a list of symbols generated on demand, as we need
 ;; more dots.
+(t/ann DOTTED-VAR-STORE (t/Atom1 (t/Map '[r/Type Symbol] Symbol)))
 (def ^:private DOTTED-VAR-STORE (atom {}))
 
 ;; Take (generate as needed) n symbols that correspond to variable var used in
 ;; the context of type t.
+(t/ann var-store-take [Symbol r/Type t/Int -> (t/Seqable Symbol)])
 (defn- var-store-take [var t n]
   (let [key [t n]
         res (@DOTTED-VAR-STORE key)]
@@ -954,9 +967,12 @@
       (let [new (take (- n (count res))
                       (repeatedly #(gensym var)))
             all (concat res new)]
-        (swap! DOTTED-VAR-STORE assoc key all)
+        (let [assoc' (t/inst assoc '[r/Type Symbol] Symbol Any)]
+          (swap! DOTTED-VAR-STORE assoc key all))
         all))))
 
+(t/ann cs-gen-Function
+       [NoMentions ConstrainVars ConstrainVars Function Function -> cset])
 (defn cs-gen-Function
   [V X Y S T]
   {:pre [((u/set-c? symbol?) V)
@@ -1260,14 +1276,17 @@
     ;; constraint explosion.
     (cons
       (cr/empty-cset X Y)
-      (doall 
-        (for [[s t] (map vector S T)]
-          (let [c (cs-gen V X Y s t)]
-;            (prn "s" s)
-;            (prn "t" t)
-;            (prn "c" c)
-;            (prn "expected cset" expected-cset)
-            (cset-meet c expected-cset)))))))
+      (let [vector' (t/inst vector r/Type r/Type Any Any Any Any)
+            map' (t/inst map '[r/Type r/Type] r/Type r/Type)]
+        (doall 
+          (for> :- cset
+            [[s t] :- '[r/Type r/Type], (map' vector' S T)]
+            (let [c (cs-gen V X Y s t)]
+  ;            (prn "s" s)
+  ;            (prn "t" t)
+  ;            (prn "c" c)
+  ;            (prn "expected cset" expected-cset)
+              (cset-meet c expected-cset))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Infer
@@ -1301,7 +1320,8 @@
         ;_ (prn "cs-short" cs-short)
         new-vars (var-store-take dotted-var T-dotted (count rest-S))
         new-Ts (doall
-                 (for [v new-vars]
+                 (for> :- r/Type
+                   [v :- Symbol, new-vars]
                    (let [target (subst/substitute-dots (map r/make-F new-vars) nil dotted-var T-dotted)]
                      #_(prn "replace" v "with" dotted-var "in" (prs/unparse-type target))
                      (subst/substitute (r/make-F v) dotted-var target))))
@@ -1323,16 +1343,17 @@
   (Fn [ConstrainVars ConstrainVars 
        (U nil (t/Seqable r/Type)) (U nil (t/Seqable r/Type))
        (U nil r/Type)
-       (U nil r/AnyType) -> (U nil cset)]
+       (U nil r/AnyType) -> (U nil true false cr/SubstMap)]
       [ConstrainVars ConstrainVars 
        (U nil (t/Seqable r/Type)) (U nil (t/Seqable r/Type))
        (U nil r/Type)
-       (U nil r/AnyType) (U nil TCResult) -> (U nil cset)]))
+       (U nil r/AnyType) (U nil TCResult) -> (U nil true false cr/SubstMap)]))
 (defn infer-vararg 
   ([X Y S T T-var R] (infer-vararg X Y S T T-var R nil))
   ([X Y S T T-var R expected]
    {:pre [(every? (u/hash-c? symbol? r/Bounds?) [X Y])
-          (every? (u/every-c? r/Type?) [S T])
+          (every? r/Type? S)
+          (every? r/Type? T)
           ((some-fn nil? r/Type?) T-var)
           (r/AnyType? R)
           ((some-fn nil? r/AnyType?) expected)]
@@ -1362,10 +1383,10 @@
 (t/ann infer
   (Fn [ConstrainVars ConstrainVars 
        (U nil (t/Seqable r/Type)) (U nil (t/Seqable r/Type))
-       (U nil r/AnyType) -> cset]
+       (U nil r/AnyType) -> (U nil true cr/SubstMap)]
       [ConstrainVars ConstrainVars 
        (U nil (t/Seqable r/Type)) (U nil (t/Seqable r/Type))
-       (U nil r/AnyType) (U nil TCResult) -> cset]))
+       (U nil r/AnyType) (U nil TCResult) -> (U nil true cr/SubstMap)]))
 (defn infer 
   ([X Y S T R] (infer X Y S T R nil))
   ([X Y S T R expected]
@@ -1374,7 +1395,9 @@
           (every? r/Type? T)
           (r/AnyType? R)
           ((some-fn nil? r/AnyType?) expected)]
-    :post [((some-fn nil? true? cr/substitution-c?) %)]}
+    :post [(or (nil? %)
+               (true? %)
+               (cr/substitution-c? %))]}
    ;  (prn "infer" )
    ;  (prn "X:" X) 
    ;  (prn "Y:" Y) 
