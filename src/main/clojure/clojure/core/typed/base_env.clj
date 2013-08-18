@@ -739,6 +739,9 @@ clojure.core/repeatedly
 
 clojure.core/some (All [x y] [[x -> y] (Option (Seqable x)) -> (Option y)])
 
+clojure.core/some-fn [[Any -> Any] [Any -> Any] * -> [Any -> Any]]
+clojure.core/every-pred [[Any -> Any] [Any -> Any] * -> [Any -> Any]]
+
 clojure.core/concat (All [x] [(Option (Seqable x)) * -> (LazySeq x)])
 
 clojure.core/set (All [x] [(Option (Seqable x)) -> (PersistentHashSet x)])

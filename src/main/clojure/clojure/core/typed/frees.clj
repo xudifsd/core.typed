@@ -18,6 +18,7 @@
            (clojure.core.typed.object_rep Path EmptyObject NoObject)
            (clojure.core.typed.path_rep KeyPE)))
 
+;TODO make this an argument
 (def ^:dynamic *frees-mode* nil)
 (set-validator! #'*frees-mode* (some-fn #{::frees ::idxs} nil?))
 
