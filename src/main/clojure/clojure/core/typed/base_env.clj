@@ -1406,7 +1406,7 @@ clojure.core/conj
 
 clojure.core/find
      (All [x y]
-          [(IPersistentMap x y) Any -> (Option (Vector* x y))])
+          [(U nil (Associative x y)) Any -> (U nil (HVec [x y]))])
 
 ; same as clojure.lang.RT/get
 clojure.core/get
@@ -1686,11 +1686,11 @@ clojure.core/chunk-append
 
 
 clojure.core/subvec (All [x] 
-                     (Fn [(IPersistentVector x) AnyInteger -> (IPersistentVector x)]
-                         [(IPersistentVector x) AnyInteger AnyInteger -> (IPersistentVector x)]))
+                     (Fn [(Vec x) AnyInteger -> (Vec x)]
+                         [(Vec x) AnyInteger AnyInteger -> (Vec x)]))
 
 clojure.core/alias [Symbol Symbol -> nil]
-clojure.core/all-ns [-> (Coll Namespace)]
+clojure.core/all-ns [-> (NilableNonEmptySeq Namespace)]
 
 clojure.core/*file* String
 clojure.core/*command-line-args* (U nil (NonEmptySeq String))
