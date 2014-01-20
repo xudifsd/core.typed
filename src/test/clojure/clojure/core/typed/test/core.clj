@@ -2784,6 +2784,10 @@
                 (+ a b))
               {1 2 3 4 5 6})))
 
+(deftest mapentry-first-test
+  (is-cf (first (first {1 2}))
+         Number))
+
 ;(deftest collect-on-eval-test
 ;  (is (do (ann foo-bar Number)
 ;          (cf (def foo-bar 1))
