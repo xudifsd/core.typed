@@ -1662,6 +1662,22 @@ for checking namespaces, cf for checking individual forms."}
     (collect-eval-form
       `(ann-datatype* '~vbnd '~dname '~fields '~opts))))
 
+(defn ^:skip-wiki pred* 
+  "Internal use only. Use pred."
+  [syn]
+  (when-not *compile-files*
+    (load-if-needed)
+    (impl/with-clojure-impl
+      (let [t ((impl/v 'clojure.core.typed.parse-unparse/parse-type)
+               syn)]
+        (eval ((impl/v 'clojure.core.typed.pred/type->pred) 
+               t))))))
+
+(defmacro pred 
+  "Returns a predicate on a type"
+  [syn]
+  `(pred* '~syn))
+
 (comment 
   (check-ns 'clojure.core.typed.test.example)
 
