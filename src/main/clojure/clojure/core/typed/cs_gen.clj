@@ -2065,12 +2065,13 @@
         ;_ (prn "rest-S" (map prs/unparse-type rest-S))
         ;_ (prn "R" R)
         ;_ (prn "expected" expected)
-        expected-cset (if expected
-                        (cs-gen #{} X {dotted-var dotted-bnd} R expected)
-                        (cr/empty-cset {} {}))
+;        expected-cset (if expected
+;                        (cs-gen #{} X {dotted-var dotted-bnd} R expected)
+;                        (cr/empty-cset {} {}))
         ;_ (prn "expected-cset" expected-cset)
         cs-short (cs-gen-list #{} X {dotted-var dotted-bnd} short-S T
-                              :expected-cset expected-cset)
+                              ;:expected-cset expected-cset
+                              )
         ;_ (prn "cs-short" cs-short)
         new-vars (var-store-take dotted-var T-dotted (count rest-S))
         new-Ts (doall
@@ -2087,14 +2088,22 @@
                    (apply interleave list-of-result)))
         cs-dotted (cs-gen-list #{} (merge X (zipmap new-vars (repeat dotted-bnd)))
                                {dotted-var dotted-bnd} rest-S new-Ts
-                               :expected-cset expected-cset)
+                               ;:expected-cset expected-cset
+                               )
         ;_ (prn "cs-dotted" cs-dotted)
         cs-dotted (move-vars-to-dmap cs-dotted dotted-var new-vars)
         ;_ (prn "cs-dotted" cs-dotted)
         cs (cset-meet cs-short cs-dotted)
         ;_ (prn "cs" cs)
+
+        substitution (subst-gen cs #{dotted-var} R)
+        substituted-R (delay (subst/subst-all substitution R))
         ]
-    (subst-gen (cset-meet cs expected-cset) #{dotted-var} R))))
+    (if expected
+      (if (subtype? (force substituted-R) expected)
+        substitution
+        (fail! substituted-R expected))
+      substitution))))
 
 ;; like infer-vararg, but T-var is the prest type:
 (t/ann infer-prest

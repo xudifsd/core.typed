@@ -1042,43 +1042,43 @@
                                   :cargs cargs))))
 
 ;assoc
-(add-invoke-special-method 'clojure.core/assoc
-  [{:keys [args] :as expr} & [expected]]
-  {:post [(-> % u/expr-type r/TCResult?)]}
-  (let [[target & keyvals] args
-
-        _ (when-not (<= 3 (count args))
-            (err/int-error (str "assoc accepts at least 3 arguments, found "
-                                     (count args))))
-        _ (when-not (even? (count keyvals))
-            (err/int-error "assoc accepts an even number of keyvals"))
-
-        ctarget (check target)
-        targetun (-> ctarget u/expr-type r/ret-t)
-        ckeyvals (doall (map check keyvals))
-        keypair-types (partition 2 (map u/expr-type ckeyvals))
-        cargs (vec (cons ctarget ckeyvals))]
-    (if-let [new-hmaps (apply c/assoc-type-pairs targetun keypair-types)]
-      (-> expr
-        (update-in [:fn] check)
-        (assoc
-          :args cargs
-          u/expr-type (r/ret new-hmaps
-                         (fo/-true-filter) ;assoc never returns nil
-                         obj/-empty)))
-      
-      ;; to do: improve this error message
-      (err/tc-delayed-error (str "Cannot assoc args `"
-                               (clojure.string/join " "
-                                 (map (comp prs/unparse-type u/expr-type) ckeyvals))
-                               "` on "
-                               (prs/unparse-type targetun))
-                          :return (-> expr
-                                      (update-in [:fn] check)
-                                      (assoc
-                                        :args cargs
-                                        u/expr-type (cu/error-ret expected)))))
-    ))
+;(add-invoke-special-method 'clojure.core/assoc
+;  [{:keys [args] :as expr} & [expected]]
+;  {:post [(-> % u/expr-type r/TCResult?)]}
+;  (let [[target & keyvals] args
+;
+;        _ (when-not (<= 3 (count args))
+;            (err/int-error (str "assoc accepts at least 3 arguments, found "
+;                                     (count args))))
+;        _ (when-not (even? (count keyvals))
+;            (err/int-error "assoc accepts an even number of keyvals"))
+;
+;        ctarget (check target)
+;        targetun (-> ctarget u/expr-type r/ret-t)
+;        ckeyvals (doall (map check keyvals))
+;        keypair-types (partition 2 (map u/expr-type ckeyvals))
+;        cargs (vec (cons ctarget ckeyvals))]
+;    (if-let [new-hmaps (apply c/assoc-type-pairs targetun keypair-types)]
+;      (-> expr
+;        (update-in [:fn] check)
+;        (assoc
+;          :args cargs
+;          u/expr-type (r/ret new-hmaps
+;                         (fo/-true-filter) ;assoc never returns nil
+;                         obj/-empty)))
+;      
+;      ;; to do: improve this error message
+;      (err/tc-delayed-error (str "Cannot assoc args `"
+;                               (clojure.string/join " "
+;                                 (map (comp prs/unparse-type u/expr-type) ckeyvals))
+;                               "` on "
+;                               (prs/unparse-type targetun))
+;                          :return (-> expr
+;                                      (update-in [:fn] check)
+;                                      (assoc
+;                                        :args cargs
+;                                        u/expr-type (cu/error-ret expected)))))
+;    ))
 
 (add-invoke-special-method 'clojure.core/dissoc
   [{fexpr :fn :keys [args] :as expr} & [expected]]
